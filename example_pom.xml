@@ -16,7 +16,7 @@
 
     <repositories>
         <repository>
-            <id>turbojax-releases</id>
+            <id>turbojaxReleases</id>
             <url>https://maven.turbojax.org/releases</url>
         </repository>
     </repositories>

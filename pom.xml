@@ -51,7 +51,7 @@
     <distributionManagement>
         <repository>
             <id>turbojax</id>
-            <!-- <name>TurboJax Maven</name> -->
+            <name>turbojaxReleases</name>
             <url>https://maven.turbojax.org/releases</url>
         </repository>
     </distributionManagement>
