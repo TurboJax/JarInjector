@@ -27,7 +27,7 @@
             <artifactId>plugin</artifactId>
             <version>1</version>
             <scope>system</scope>
-            <systemPath>${project.basedir}/${plugin.path}</systemPath>
+            <systemPath>${project.basedir}/${lib.path}</systemPath>
         </dependency>
     </dependencies>
 
