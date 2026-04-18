@@ -9,6 +9,8 @@
     <packaging>maven-plugin</packaging>
 
     <properties>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
         <maven-plugin-api.version>3.9.9</maven-plugin-api.version>
         <maven-plugin-tools.version>3.15.2</maven-plugin-tools.version>
     </properties>
@@ -50,8 +52,8 @@
 
     <distributionManagement>
         <repository>
-            <id>turbojax</id>
-            <name>turbojaxReleases</name>
+            <id>turbo-releases</id>
+            <name>Reposilite Repository</name>
             <url>https://maven.turbojax.org/releases</url>
         </repository>
     </distributionManagement>
