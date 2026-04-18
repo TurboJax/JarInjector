@@ -10,67 +10,69 @@ import java.util.Comparator;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
-
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
+import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 
 @Mojo(name = "inject")
 public class Inject extends AbstractMojo {
-    @Parameter(property = "run.pluginJar", required = true)
-    private String pluginJar;
+    @Parameter(property = "run.toPatch", required = true)
+    private String jarFile;
 
-    @Parameter(property = "run.patchedPluginName")
-    private String patchedPluginName;
+    @Parameter(property = "run.outputName")
+    private String outputName;
+
+    private final Log log = getLog();
 
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
         // Getting the project from the plugin context
         MavenProject project = (MavenProject) getPluginContext().get("project");
 
-        // Getting the plugin file from the localPlugin parameter
-        File pluginFile = new File(pluginJar);
+        // Getting the file from the toPatch parameter
+        File file = new File(jarFile);
 
-        // Handling if the plugin file doesn't exist
-        if (!pluginFile.exists()) {
-            getLog().error("Cannot find the plugin at \"" + pluginJar + "\".  Make sure that this is a path is relative to the base directory or absolute.");
+        // Handling if the file doesn't exist
+        if (!file.exists()) {
+            log.error("Cannot find the file at \"" + jarFile + "\".  Make sure that this is a path is relative to the base directory or absolute.");
             return;
         }
 
-        getLog().info("Plugin found!");
+        log.info("Source jar found!");
 
         // Getting the built patch jar
         String patchFileName = "target/" + project.getArtifactId() + "-" + project.getVersion() + ".jar";
         File patchFile = new File(patchFileName);
 
         if (!patchFile.exists()) {
-            getLog().error("Cannot find the patch file at \"" + patchFileName + "\".  Make sure that this is a path is relative to the base directory or absolute.");
+            log.error("Cannot find the patch file at \"" + patchFileName + "\".  Make sure that this is a path is relative to the base directory or absolute.");
             return;
         }
 
-        getLog().info("Patch file found!");
+        log.info("Patch file found!");
 
         // Getting the target directory
         File targetDir = new File("target/" + patchFile.getName().replace(".jar", ""));
 
-        // Extracting the plugin to the target directory
-        unzip(pluginFile, targetDir);
+        // Extracting the source file to the target directory
+        unzip(file, targetDir);
 
         // Extracting the patch file to the target directory
         unzip(patchFile, targetDir);
 
-        // Zipping the contents of the target directory into a patched plugin
+        // Zipping the contents of the target directory into a patched file
         try {
-            // Getting what to name the patched plugin.jar file
-            if (patchedPluginName == null) {
-                patchedPluginName = pluginFile.getName().replace(".jar", "") + "-patched.jar";
+            // Getting what to name the patched file
+            if (outputName == null) {
+                outputName = file.getName().replace(".jar", "") + "-patched.jar";
             }
 
             // Create ZipOutputStream to write to the zip file
-            ZipOutputStream zos = new ZipOutputStream(new FileOutputStream("target/" + patchedPluginName));
+            ZipOutputStream zipStream = new ZipOutputStream(new FileOutputStream("target/" + outputName));
 
             // Looping over every path to zip
             Files.walk(targetDir.toPath()).forEach(filePath -> {
@@ -80,79 +82,84 @@ public class Inject extends AbstractMojo {
                 try {
                     // Creating the ZipEntry for the file
                     ZipEntry ze = new ZipEntry(filePath.subpath(2, filePath.getNameCount()).toString());
-                    zos.putNextEntry(ze);
+                    zipStream.putNextEntry(ze);
 
                     // Reading the file and writing it to ZipOutputStream
-                    FileInputStream fis = new FileInputStream(filePath.toFile());
+                    FileInputStream fileStream = new FileInputStream(filePath.toFile());
                     byte[] buffer = new byte[1024];
                     int len;
-                    while ((len = fis.read(buffer)) > 0) {
-                        zos.write(buffer, 0, len);
+                    while ((len = fileStream.read(buffer)) > 0) {
+                        zipStream.write(buffer, 0, len);
                     }
 
-                    zos.closeEntry();
-                    fis.close();
+                    zipStream.closeEntry();
+                    fileStream.close();
                 } catch (IOException err) {
-                    getLog().error("Could not create a ZipEntry for" + filePath.toString(), err);
+                    log.error("Could not create a ZipEntry for" + filePath.toString(), err);
                     System.exit(1);
                 }
             });
-            zos.close();
+            zipStream.close();
         } catch (IOException err) {
-            getLog().error("Could not zip up the contents of " + targetDir.toString(), err);
+            log.error("Could not zip up the contents of " + targetDir.toString(), err);
             return;
         }
 
-        getLog().info("Successfully patched the plugin.");
+        log.info("Successfully patched " + jarFile);
 
         // Removing unzipped folder
         try {
             Files.walk(targetDir.toPath()).sorted(Comparator.reverseOrder()).map(Path::toFile).forEach(File::delete);
         } catch (IOException err) {
-            getLog().warn("Error deleting unzipped plugin directory: ", err);
+            log.warn("Error deleting unzipped directory: ", err);
         }
 
-        getLog().info("Removed the temporary files.");
+        log.info("Removed the temporary files.");
     }
 
     /**
      * Unzips a zip file into a folder
-     * @param zipFilePath
-     * @param destDir
+     * @param zipFile
+     * @param dest
      */
-    private static void unzip(File zipFilePath, File dir) {
-        // create output directory if it doesn't exist
-        if (!dir.exists()) dir.mkdirs();
+    private void unzip(File zipFile, File dest) {
+        // Creating output directory if it doesn't exist
+        if (!dest.exists()) dest.mkdirs();
 
-        // buffer for read and write data to file
+        // Buffer for read and write data to file
         byte[] buffer = new byte[1024];
         try {
-            FileInputStream fis = new FileInputStream(zipFilePath);
-            ZipInputStream zis = new ZipInputStream(fis);
-            ZipEntry ze = zis.getNextEntry();
-            while (ze != null) {
-                String fileName = ze.getName();
-                File newFile = new File(dir, fileName);
-                if (!ze.isDirectory()) {
-                    // create directories for sub directories in zip
-                    new File(newFile.getParent()).mkdirs();
-                    FileOutputStream fos = new FileOutputStream(newFile);
-                    int len;
-                    while ((len = zis.read(buffer)) > 0) {
-                        fos.write(buffer, 0, len);
-                    }
-                    fos.close();
+            ZipInputStream zipStream = new ZipInputStream(new FileInputStream(zipFile));
+
+            ZipEntry entry = zipStream.getNextEntry();
+            while (entry != null) {
+                File outFile = new File(dest, entry.getName());
+
+                // Skipping dirs
+                if (entry.isDirectory()) continue;
+
+                // Creating the parent dirs
+                outFile.getParentFile().mkdirs();
+
+                // Extracting the file
+                FileOutputStream fos = new FileOutputStream(outFile);
+                int len;
+                while ((len = zipStream.read(buffer)) > 0) {
+                    fos.write(buffer, 0, len);
                 }
-                // close this ZipEntry
-                zis.closeEntry();
-                ze = zis.getNextEntry();
+                fos.close();
+
+                // Moving to the next ZipEntry
+                zipStream.closeEntry();
+                entry = zipStream.getNextEntry();
             }
-            // close last ZipEntry
-            zis.closeEntry();
-            zis.close();
-            fis.close();
+            
+            // Closing zipstream
+            zipStream.close();
+            log.info("Unzipped " + zipFile.getName() + " to " + dest.getName());
         } catch (IOException err) {
             err.printStackTrace();
+            log.error("Error while extracting " + zipFile.getName(), err);
         }
     }
 }

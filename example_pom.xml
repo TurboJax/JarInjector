@@ -11,7 +11,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
-        <plugin.path>./libs/{original.jar}</plugin.path>
+        <lib.path>./libs/{original.jar}</lib.path>
     </properties>
 
     <repositories>
@@ -39,7 +39,7 @@
                 <artifactId>jarinjector</artifactId>
                 <version>1</version>
                 <configuration>
-                    <pluginJar>${plugin.path}</pluginJar>
+                    <toPatch>${lib.path}</toPatch>
                 </configuration>
 
                 <executions>
