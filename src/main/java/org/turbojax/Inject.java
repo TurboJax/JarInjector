@@ -20,11 +20,11 @@ import org.apache.maven.project.MavenProject;
 
 @Mojo(name = "inject")
 public class Inject extends AbstractMojo {
-    @Parameter(property = "run.toPatch", required = true)
-    private String jarFile;
+    @Parameter(property = "run.sourceJar", required = true)
+    private String sourceJarName;
 
-    @Parameter(property = "run.outputName")
-    private String outputName;
+    @Parameter(property = "run.patchedJar")
+    private String patchedJarName;
 
     private final Log log = getLog();
 
@@ -34,11 +34,11 @@ public class Inject extends AbstractMojo {
         MavenProject project = (MavenProject) getPluginContext().get("project");
 
         // Getting the file from the toPatch parameter
-        File file = new File(jarFile);
+        File sourceJar = new File(sourceJarName);
 
         // Handling if the file doesn't exist
-        if (!file.exists()) {
-            log.error("Cannot find the file at \"" + jarFile + "\".  Make sure that this is a path is relative to the base directory or absolute.");
+        if (!sourceJar.exists()) {
+            log.error("Cannot find the file at \"" + sourceJarName + "\".  Make sure that this is a path is relative to the base directory or absolute.");
             return;
         }
 
@@ -59,7 +59,7 @@ public class Inject extends AbstractMojo {
         File targetDir = new File("target/" + patchFile.getName().replace(".jar", ""));
 
         // Extracting the source file to the target directory
-        unzip(file, targetDir);
+        unzip(sourceJar, targetDir);
 
         // Extracting the patch file to the target directory
         unzip(patchFile, targetDir);
@@ -67,12 +67,12 @@ public class Inject extends AbstractMojo {
         // Zipping the contents of the target directory into a patched file
         try {
             // Getting what to name the patched file
-            if (outputName == null) {
-                outputName = file.getName().replace(".jar", "") + "-patched.jar";
+            if (patchedJarName == null) {
+                patchedJarName = sourceJar.getName().replace(".jar", "") + "-patched.jar";
             }
 
             // Create ZipOutputStream to write to the zip file
-            ZipOutputStream zipStream = new ZipOutputStream(new FileOutputStream("target/" + outputName));
+            ZipOutputStream patchedJar = new ZipOutputStream(new FileOutputStream("target/" + patchedJarName));
 
             // Looping over every path to zip
             Files.walk(targetDir.toPath()).forEach(filePath -> {
@@ -81,31 +81,31 @@ public class Inject extends AbstractMojo {
 
                 try {
                     // Creating the ZipEntry for the file
-                    ZipEntry ze = new ZipEntry(filePath.subpath(2, filePath.getNameCount()).toString());
-                    zipStream.putNextEntry(ze);
+                    ZipEntry entry = new ZipEntry(filePath.subpath(2, filePath.getNameCount()).toString());
+                    patchedJar.putNextEntry(entry);
 
                     // Reading the file and writing it to ZipOutputStream
                     FileInputStream fileStream = new FileInputStream(filePath.toFile());
                     byte[] buffer = new byte[1024];
                     int len;
                     while ((len = fileStream.read(buffer)) > 0) {
-                        zipStream.write(buffer, 0, len);
+                        patchedJar.write(buffer, 0, len);
                     }
 
-                    zipStream.closeEntry();
+                    patchedJar.closeEntry();
                     fileStream.close();
                 } catch (IOException err) {
                     log.error("Could not create a ZipEntry for" + filePath.toString(), err);
                     System.exit(1);
                 }
             });
-            zipStream.close();
+            patchedJar.close();
         } catch (IOException err) {
             log.error("Could not zip up the contents of " + targetDir.toString(), err);
             return;
         }
 
-        log.info("Successfully patched " + jarFile);
+        log.info("Successfully patched " + sourceJarName);
 
         // Removing unzipped folder
         try {

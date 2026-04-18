@@ -37,9 +37,9 @@
             <plugin>
                 <groupId>org.turbojax</groupId>
                 <artifactId>jarinjector</artifactId>
-                <version>1</version>
+                <version>1.1</version>
                 <configuration>
-                    <toPatch>${lib.path}</toPatch>
+                    <sourceJar>${lib.path}</sourceJar>
                 </configuration>
 
                 <executions>

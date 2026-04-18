@@ -21,7 +21,7 @@ In your pom.xml, add `jarinjector` as a plugin as shown below.
     <plugin>
         <groupId>org.turbojax</groupId>
         <artifactId>jarinjector</artifactId>
-        <version>1</version>
+        <version>1.1</version>
         <configuration>
             <sourceJar>CHANGEME</sourceJar>
         </configuration>
