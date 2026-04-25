@@ -40,3 +40,31 @@ If you'd like to run the injector automatically when you run `mvn install`, add 
     </execution>
 </executions>
 ```
+
+## Gradle
+If you want to use Gradle instead of Maven, here is a gradle task to put in build.gradle that does what this plugin does.
+```
+ext {
+    sourceJar = "changeme"
+    patchedJar = "changeme"
+}
+
+task inject(type: Zip) {
+    delete "unpacked"
+    duplicatesStrategy = "include"
+
+    from zipTree("build/libs/${rootProject.name}-${version}.jar")
+    into "unpacked"
+    
+    from zipTree("${sourceJar}")
+    into "unpacked"
+
+    from "unpacked/"
+    include "*"
+    include "*/*"
+    archiveFileName = "$patchedJar"
+    destinationDirectory = layout.buildDirectory
+
+    delete "unpacked/"
+}
+```
